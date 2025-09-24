@@ -186,7 +186,7 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
   byId('new').addEventListener('click', newGame);
   byId('reset').addEventListener('click', resetBoard);
   byId('undo').addEventListener('click', undo);
-  byId('hint').addEventListener('click', hint);
+  //byId('hint').addEventListener('click', hint);
   byId('ok').addEventListener('click', ()=>modal.classList.remove('active'));
   modal.addEventListener('click', e=>{ if(e.target===modal) modal.classList.remove('active'); });
 
