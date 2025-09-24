@@ -25,6 +25,7 @@ html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe U
 .board{display:grid;grid-template-columns:380px 1fr; gap:18px; align-items: start;}
 .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid rgba(255,255,255,.07);border-radius:16px; box-shadow:0 12px 32px rgba(0,0,0,.35); padding:14px}
 .card h2{margin:2px 0 10px; font-size:16px; letter-spacing:.3px}
+.left-column > .card { margin-bottom: 18px; }
 
 .toolbar{display:flex; flex-wrap:wrap; gap:8px}
 .btn{background:linear-gradient(180deg,#273074,#1a1f55);border:1px solid rgba(255,255,255,.10); color:#fff; padding:10px 12px; border-radius:12px; cursor:pointer; font-weight:700; letter-spacing:.2px; box-shadow:0 8px 18px rgba(0,0,0,.25); transition:transform .05s, box-shadow .2s}
@@ -81,17 +82,17 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
 <body>
 <div class="wrap">
   <div class="board">
-    <section class="card game-title">
-        <h1>Ateşböceği Algoritma Oyunu</h1>
-        <div class="sub">
-            <p><b>Amaç:</b> Tüm ateşböceklerini söndürmek.</p>
-            <p>Bir hücreye tıkladığınızda, o hücre ve ona bitişik olan komşuları (yukarı, aşağı, sağ, sol) durum değiştirir (yanıyorsa söner, sönükse yanar).</p>
-            <p>Bulmacayı en az hamlede çözmeye çalışın! 🌟</p>
-            <p style="font-size: 14px;">Bu oyun <b>mantık, desen tanıma</b> ve <b>strateji</b> becerilerini güçlendirir.</p>
-        </div>
-    </section>
+    <!-- SOL PANEL: AÇIKLAMA VE KONTROLLER -->
+    <div class="left-column">
+        <section class="card game-title">
+            <h1>Ateşböceği Algoritma Oyunu</h1>
+            <div class="sub">
+                <p><b>Amaç:</b> Tüm ateşböceklerini söndürmek.</p>
+                <p>Bir hücreye tıkladığınızda, o hücre ve ona bitişik olan komşuları (yukarı, aşağı, sağ, sol) durum değiştirir.</p>
+                <p>Bulmacayı en az hamlede çözmeye çalışın! 🌟</p>
+            </div>
+        </section>
 
-    <div>
         <section class="card">
             <h2>Kontrol Paneli</h2>
             <div class="toolbar">
@@ -101,7 +102,7 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
             </div>
 
             <div class="row">
-                <div class="stat">Hamle: <b id="moves">0</b> | En İyi: <b id="best">—</b></div>
+                <div class="stat">Hamle: <b id="moves">0</b></div>
                 <div class="row" style="gap:8px">
                     <label class="stat">Boyut:</label>
                     <select id="size">
@@ -113,22 +114,19 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
                     <input id="scramble" type="number" min="3" max="40" value="12" style="width:70px" />
                 </div>
             </div>
-
-            <div class="row">
-                <div class="stat">Durum: <span id="state">Hazır</span></div>
-                <div class="stat">Tohum (seed): <b id="seed">—</b></div>
-            </div>
-        </section>
-
-        <section class="card" style="display:grid; place-items:center; margin-top: 18px;">
-            <div class="stage">
-                <div id="grid" class="grid"></div>
-            </div>
         </section>
     </div>
+
+    <!-- SAĞ PANEL: OYUN ALANI -->
+    <section class="card" style="display:grid; place-items:center;">
+        <div class="stage">
+            <div id="grid" class="grid"></div>
+        </div>
+    </section>
   </div>
 </div>
 
+<!-- Kazanım Modal -->
 <div id="modal" class="modal" role="dialog" aria-modal="true">
   <div class="inner">
     <h2>🎉 Tebrikler!</h2>
@@ -147,26 +145,16 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
 
   const byId = id=>document.getElementById(id);
 
-  const store = {
-    get(k){ try{return JSON.parse(localStorage.getItem(k))}catch{ return null } },
-    set(k,v){ localStorage.setItem(k, JSON.stringify(v)) }
-  };
-
   // game state
   let N = 3;              // Grid size (default to 3)
   let board=[];
   let moves=0;
-  let best=null;
-  let seed=0;
   let scrambleCount=12;
   let history=[];
 
   // DOM
   const gridEl = byId('grid');
   const movesEl= byId('moves');
-  const bestEl = byId('best');
-  const stateEl= byId('state');
-  const seedEl = byId('seed');
   const modal  = byId('modal');
   const pwdEl  = byId('pwd');
   const copyBtn= byId('copy');
@@ -181,10 +169,6 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
   modal.addEventListener('click', e=>{ if(e.target===modal) modal.classList.remove('active'); });
 
   function clampInt(v,a,b){ v=parseInt(v,10)||a; return Math.max(a, Math.min(b, v)); }
-
-  function key(){ return `firefly-best-${N}-${seed}` }
-
-  function setState(txt){ stateEl.textContent = txt }
 
   function idx(x,y){ return y*N + x }
 
@@ -226,26 +210,29 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
     if(countMove){
       history.push(snap);
       moves++; movesEl.textContent=moves;
-      setState('Oynanıyor');
       checkWin();
     }
   }
-
+  
   function randomizeWithSeed(s){
-    let v = (s>>>0) || 1;
-    return ()=>{ v = (1664525*v + 1013904223) >>> 0; return v/4294967296 };
+      // Basit bir LCG, tekrarlanabilir rastgelelik için
+      let v = (s >>> 0) || 1;
+      return () => {
+          v = (1664525 * v + 1013904223) >>> 0;
+          return v / 4294967296;
+      };
   }
 
   function scramble(){
-    board = new Array(N*N).fill(0);
-    const r = randomizeWithSeed(seed);
-    for(let i=0;i<scrambleCount;i++){
-      const x=Math.floor(r()*N), y=Math.floor(r()*N);
-      clickCell(x,y,false);
-    }
-    moves=0; history.length=0; movesEl.textContent='0';
-    setState('Hazır');
-    paint();
+      const seed = Date.now() % 100000;
+      board = new Array(N * N).fill(0);
+      const r = randomizeWithSeed(seed);
+      for (let i = 0; i < scrambleCount; i++) {
+          const x = Math.floor(r() * N), y = Math.floor(r() * N);
+          clickCell(x, y, false);
+      }
+      moves = 0; history.length = 0; movesEl.textContent = '0';
+      paint();
   }
 
   function resetBoard(){
@@ -253,10 +240,6 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
   }
 
   function newGame(){
-    seed = Date.now() % 100000;
-    seedEl.textContent = seed;
-    best = store.get(key());
-    bestEl.textContent = best==null ? '—' : best;
     renderGrid();
     scramble();
   }
@@ -272,8 +255,6 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
 
   function checkWin(){
     if(isSolved()){
-      setState('Bitti!');
-      if(best==null || moves<best){ best=moves; bestEl.textContent=best; store.set(key(),best); }
       pwdEl.textContent = FIXED_PASSWORD;
       modal.classList.add('active');
     }
