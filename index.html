@@ -230,3 +230,106 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
   function toggle(x,y){ if(!inBounds(x,y)) return; board[idx(x,y)] ^= 1; }
 
   function clickCell(x,y,countMove){
+    // push history before change
+    const snap = board.slice();
+    // toggle plus neighbors
+    toggle(x,y); toggle(x-1,y); toggle(x+1,y); toggle(x,y-1); toggle(x,y+1);
+    paint();
+    if(countMove){
+      history.push(snap);
+      moves++; movesEl.textContent=moves;
+      setState('Oynanıyor');
+      checkWin();
+    }
+  }
+
+  function randomizeWithSeed(s){
+    // simple LCG for reproducible randomness
+    let v = (s>>>0) || 1;
+    return ()=>{ v = (1664525*v + 1013904223) >>> 0; return v/4294967296 };
+  }
+
+  function scramble(){
+    // start from solved (all off) and apply k random valid clicks
+    board = new Array(N*N).fill(0);
+    const r = randomizeWithSeed(seed);
+    for(let i=0;i<scrambleCount;i++){
+      const x=Math.floor(r()*N), y=Math.floor(r()*N);
+      clickCell(x,y,false); // do not count move / history
+    }
+    moves=0; history.length=0; movesEl.textContent='0';
+    setState('Hazır');
+    paint();
+  }
+
+  function resetBoard(){
+    // re-scramble with same seed
+    scramble();
+  }
+
+  function newGame(){
+    seed = Date.now() % 100000;  // short seed
+    seedEl.textContent = seed;
+    best = store.get(key());
+    bestEl.textContent = best==null ? '—' : best;
+    renderGrid();
+    scramble();
+  }
+
+  function undo(){
+    if(history.length===0) return;
+    board = history.pop();
+    moves=Math.max(0,moves-1); movesEl.textContent=moves;
+    paint();
+  }
+
+  function isSolved(){ return board.every(v=>v===0) }
+
+  function checkWin(){
+    if(isSolved()){
+      setState('Bitti!');
+      if(best==null || moves<best){ best=moves; bestEl.textContent=best; store.set(key(),best); }
+      // SABİT ŞİFREYİ GÖSTER
+      pwdEl.textContent = FIXED_PASSWORD;
+      modal.classList.add('active');
+    }
+  }
+
+  // Güvenli kopyalama (HTTPS/localhost) + fallback (HTTP/file)
+  async function copyToClipboard(text){
+    try{
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      }
+    }catch(e){
+      console.warn('Clipboard failed:', e);
+      return false;
+    }
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async ()=>{
+      const ok = await copyToClipboard((pwdEl.textContent || '').trim());
+      copyBtn.textContent = ok ? '✅ Kopyalandı' : '❌ Kopyalanamadı';
+      setTimeout(()=> copyBtn.textContent = '📋 Kopyala', 1500);
+    });
+  }
+
+  // kick off
+  newGame();
+})();
+</script>
+</body>
+</html>
