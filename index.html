@@ -55,7 +55,23 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
 .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(5,6,16,.65); backdrop-filter:blur(5px)}
 .modal.active{display:flex}
 .modal .inner{background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid rgba(255,255,255,.10); padding:22px; border-radius:16px; max-width:520px; text-align:center}
-.pass{font-size:20px; font-weight:800; color:var(--gold); letter-spacing:1px}
+
+/* Şifre satırı ve kopyala */
+.pass{
+  font-size:26px;            /* okunaklı büyük */
+  font-weight:900;
+  color:var(--gold);
+  letter-spacing:1px;
+  text-shadow:0 0 10px rgba(255,222,89,.9), 0 0 18px rgba(108,93,211,.6);
+}
+.copyline{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  justify-content:center;
+  margin:10px 0;
+}
+.copyline .btn{padding:10px 12px}
 
 /* responsive */
 @media (max-width:980px){
@@ -67,8 +83,8 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
 <body>
 <div class="wrap">
   <header>
-    <h1>Ateşböceği Bulmacası <span style="font-weight:400;color:var(--muted)">— Lights Out, çocuk dostu</span></h1>
-    <div class="sub">Amaç: <b>tüm ateşböceklerini söndür</b> (hepsi <i>off</i> olmalı). Bir hücreye tıklayınca o hücre ve <i>yandaki komşuları</i> (yukarı, aşağı, sağ, sol) durum değiştirir. En az hamlede bitirmeye çalış! 🌟</div>
+    <h1>Ateşböceği Algoritma Oyunu</h1>
+    <div class="sub">Amaç: <b>tüm ateşböceklerini söndür</b>. Bir hücreye tıklayınca o hücre ve <i>yandaki komşuları</i> (yukarı, aşağı, sağ, sol) durum değiştirir. En az hamlede bitirmeye çalış! 🌟</div>
   </header>
 
   <div class="board">
@@ -101,7 +117,7 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
       </div>
 
       <div class="row" style="margin-top:8px">
-        <div class="stat">Not: Bu oyun <b>mantık, desen tanıma</b> ve <b>strateji</b> becerilerini güçlendirir. Çocuklar için güvenli ve reklamsızdır.</div>
+        <div class="stat">Not: Bu oyun <b>mantık, desen tanıma</b> ve <b>strateji</b> becerilerini güçlendirir.</div>
       </div>
     </section>
 
@@ -118,14 +134,23 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
   <div class="inner">
     <h2>🎉 Tebrikler!</h2>
     <p>Tüm ateşböcekleri söndü — gece sakin ve huzurlu.</p>
-    <p class="pass">Şifre: <span id="pwd">FIREFLY-315</span></p>
-    <p style="color:var(--muted);font-size:14px">Bu şifre boyut ve tohuma göre değişir. Bir sonraki zorlukta deneyebilirsin.</p>
+
+    <!-- Şifre + Kopyala -->
+    <div class="copyline">
+      <span class="pass">Şifre: <span id="pwd">—</span></span>
+      <button class="btn" id="copy">📋 Kopyala</button>
+    </div>
+
+    <p style="color:var(--muted);font-size:14px">Bu şifre sabittir ve her oyunda aynıdır.</p>
     <button class="btn good" id="ok">Tamam</button>
   </div>
 </div>
 
 <script>
 (function(){
+  // Sabit şifre (uzun ve okunaklı)
+  const FIXED_PASSWORD = 'FF-OKUL-2025-TR-9X7A-4QPM-ALGORITMA-42';
+
   // --- helpers ---
   const rnd = (min,max)=>Math.floor(Math.random()*(max-min+1))+min;
   const byId = id=>document.getElementById(id);
@@ -153,6 +178,7 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
   const seedEl = byId('seed');
   const modal  = byId('modal');
   const pwdEl  = byId('pwd');
+  const copyBtn= byId('copy');
 
   // UI events
   byId('size').addEventListener('change', e=>{ N=parseInt(e.target.value,10); newGame(); });
@@ -204,100 +230,3 @@ select, input[type="number"]{background:#0e1333; border:1px solid rgba(255,255,2
   function toggle(x,y){ if(!inBounds(x,y)) return; board[idx(x,y)] ^= 1; }
 
   function clickCell(x,y,countMove){
-    // push history before change
-    const snap = board.slice();
-    // toggle plus neighbors
-    toggle(x,y); toggle(x-1,y); toggle(x+1,y); toggle(x,y-1); toggle(x,y+1);
-    paint();
-    if(countMove){
-      history.push(snap);
-      moves++; movesEl.textContent=moves;
-      setState('Oynanıyor');
-      checkWin();
-    }
-  }
-
-  function randomizeWithSeed(s){
-    // simple LCG for reproducible randomness
-    let v = (s>>>0) || 1;
-    return ()=>{ v = (1664525*v + 1013904223) >>> 0; return v/4294967296 };
-  }
-
-  function scramble(){
-    // start from solved (all off) and apply k random valid clicks
-    board = new Array(N*N).fill(0);
-    const r = randomizeWithSeed(seed);
-    for(let i=0;i<scrambleCount;i++){
-      const x=Math.floor(r()*N), y=Math.floor(r()*N);
-      clickCell(x,y,false); // do not count move / history
-    }
-    moves=0; history.length=0; movesEl.textContent='0';
-    setState('Hazır');
-    paint();
-  }
-
-  function resetBoard(){
-    // re-scramble with same seed
-    scramble();
-  }
-
-  function newGame(){
-    seed = Date.now() % 100000;  // short seed
-    seedEl.textContent = seed;
-    best = store.get(key());
-    bestEl.textContent = best==null ? '—' : best;
-    renderGrid();
-    scramble();
-  }
-
-  function undo(){
-    if(history.length===0) return;
-    board = history.pop();
-    moves=Math.max(0,moves-1); movesEl.textContent=moves;
-    paint();
-  }
-
-  function isSolved(){ return board.every(v=>v===0) }
-
-  function checkWin(){
-    if(isSolved()){
-      setState('Bitti!');
-      if(best==null || moves<best){ best=moves; bestEl.textContent=best; store.set(key(),best); }
-      // Password depends on N and seed
-      const code = makePassword(N, seed, moves);
-      pwdEl.textContent = code;
-      modal.classList.add('active');
-    }
-  }
-
-  function makePassword(n, s, m){
-    const ad = ['M','A','Y','B','U','G','Z'];
-    const p1 = ad[(s%ad.length)];
-    const p2 = ((s*31 + n*13 + m) % 899 + 100).toString();
-    const p3 = n===3?'KOLAY': (n===5?'ORTA':'ZOR');
-    return `${p1}-${p3}-${p2}`; // örn: A-ORTA-587
-  }
-
-  function hint(){
-    // basit ipucu: ışığı açık olan ve en çok açık komşuya sahip hücreyi öner
-    let bestScore=-1, bestCell=null;
-    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
-      // evaluate score = how many ON would flip to OFF if we click here
-      let score=0;
-      [[x,y],[x-1,y],[x+1,y],[x,y-1],[x,y+1]].forEach(([cx,cy])=>{
-        if(!inBounds(cx,cy)) return; if(board[idx(cx,cy)]===1) score++;
-      });
-      if(score>bestScore){ bestScore=score; bestCell={x,y}; }
-    }
-    if(bestCell){
-      const c = cellAt(bestCell.x, bestCell.y);
-      c.classList.add('hint'); setTimeout(()=>c.classList.remove('hint'), 1200);
-    }
-  }
-
-  // kick off
-  newGame();
-})();
-</script>
-</body>
-</html>
